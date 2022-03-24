@@ -6,6 +6,10 @@ let logger = require('morgan');
 
 let app = express();
 
+let bodyParser = require('body-parser');
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
 let indexRouter = require('./routes/index');
 let usersRouter = require('./routes/users');
 require("./routes/songs.js")(app);
@@ -40,3 +44,4 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+app.use(express.static(path.join(__dirname, 'public')));
