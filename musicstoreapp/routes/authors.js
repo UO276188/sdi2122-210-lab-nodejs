@@ -1,29 +1,31 @@
 module.exports = function (app){
+
+    let authors = [{
+        "name" : "James Heatfield",
+        "group": "Metallica",
+        "role": "cantante"
+    },{
+        "name" : "Eric Griso",
+        "group": "Arnau Griso",
+        "role": "guitarrista"
+    }, {
+        "name" : "Steven Tyler",
+        "group": "Aerosmith",
+        "role": "cantante"
+    }];
+
     app.get("/authors", function (req, res) {
-        let authors = [{
-            "name" : "James Heatfield",
-            "group": "Metallica",
-            "role": "Cantante"
-        },{
-            "name" : "Eric Griso",
-            "group": "Arnau Griso",
-            "role": "Guitarrista"
-        }, {
-            "name" : "Steven Tyler",
-            "group": "Aerosmith",
-            "role": "Cantante"
-        }];
 
         let response = {
             seller: 'Tienda de canciones',
             authors: authors
         };
 
-        res.render("authors/authors.twig", response);
+        res.render('authors/authors.twig', response);
     });
 
     app.get("/authors/add", function (req, res) {
-        let roles= ['Cantante','Batería','Guitarrista','Bajista','Teclista']
+        let roles= ['cantante','batería','guitarrista','bajista','teclista']
 
         let response = {
             roles: roles
@@ -51,6 +53,18 @@ module.exports = function (app){
     app.get('/authors/:id', function(req, res) {
         let response = 'Author id: ' + req.params.id;
         res.send(response);
+    });
+
+
+    app.get('/authors/filter/:role', function (req, res){
+        let filteredAuthors = authors.filter(x=> x.role===req.params.role);
+
+        let response = {
+            seller: 'Tienda de canciones',
+            authors: filteredAuthors
+        };
+
+        res.render("authors/authors.twig", response);
     });
 
     app.get('/authors/*', function (req, res) {
