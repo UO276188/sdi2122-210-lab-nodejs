@@ -1,4 +1,4 @@
-module.exports = function(app) {
+module.exports = function(app, MongoClient) {
     app.get("/songs", function (req, res) {
         let songs = [{
             "title" : "Blank space",
@@ -19,13 +19,13 @@ module.exports = function(app) {
         res.render("shop.twig", response);
     });
 
-    app.get('/add', function(req, res) {
-        let response = parseInt(req.query.num1) + parseInt(req.query.num2);
-        res.send(String(response));
-    });
+    // app.get('/add', function(req, res) {
+    //     let response = parseInt(req.query.num1) + parseInt(req.query.num2);
+    //     res.send(String(response));
+    // });
 
     app.get('/songs/add', function (req, res) {
-        res.render("add.twig");
+        res.render("songs/add.twig");
     });
 
     app.get('/songs/:id', function(req, res) {
@@ -40,17 +40,31 @@ module.exports = function(app) {
     });
 
     app.post('/songs/add', function(req, res) {
-        let response = "Canción agregada: " + req.body.title + "<br>"
-            + "genero: " + req.body.kind + "<br>"
-            +"precio: " + req.body.price
-        res.send(response);
+        let song = {
+            title: req.body.title,
+            kind: req.body.kind,
+            price: req.body.price
+        }
+        MongoClient.connect(app.get('connectionStrings'), function (err, dbClient) {
+            if (err) {
+                res.send("Error de conexión: " + err);
+            } else {
+                const database = dbClient.db("musicStore");
+                const collectionName = 'songs';
+                const songsCollection = database.collection(collectionName);
+                songsCollection.insertOne(song)
+                    .then(result => res.send("canción añadida id: " + result.insertedId))
+                    .then(() => dbClient.close())
+                    .catch(err => res.send("Error al insertar " + err));
+            }
+        });
     });
 
-    app.get('/promo*', function (req, res) {
-        res.send('Respuesta al patrón promo*');
-    });
-
-    app.get('/pro*ar', function (req, res) {
-        res.send('Respuesta al patrón pro*ar');
-    });
+    // app.get('/promo*', function (req, res) {
+    //     res.send('Respuesta al patrón promo*');
+    // });
+    //
+    // app.get('/pro*ar', function (req, res) {
+    //     res.send('Respuesta al patrón pro*ar');
+    // });
 };
