@@ -10,14 +10,17 @@ module.exports = function(app, commentsRepository) {
                 text : req.body.texto,
                 song_id : ObjectId(req.params.song_id)
             }
-
-            commentsRepository.addComment(comment, function(id) {
-                if (id == null) {
-                    res.send("Error al añadir comentario");
-                } else {
-                    res.send("Comentario añadido");
-                }
-            });
+            if (typeof req.body.texto === 'undefined' || req.body.texto === null || req.body.texto.toString().trim().length ==0){
+                res.send("El comentario no puede estar en blanco");
+            } else {
+                commentsRepository.addComment(comment, function(id) {
+                    if (id == null) {
+                        res.send("Error al añadir comentario");
+                    } else {
+                        res.send("Comentario añadido");
+                    }
+                });
+            }
         }
     });
 
