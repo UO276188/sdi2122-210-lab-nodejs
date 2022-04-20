@@ -7,6 +7,9 @@
 var app = require('../app');
 var debug = require('debug')('musicstoreapp:server');
 var http = require('http');
+const path = require("path");
+const fs = require("fs");
+const https = require("https");
 
 /**
  * Get port from environment and store in Express.
@@ -20,8 +23,8 @@ app.set('port', port);
  */
 
 // var server = http.createServer(app);
-let privateKey = fs.readFileSync('bin/certificates/alice.key', 'utf8');
-let certificate = fs.readFileSync('bin/certificates/alice.crt', 'utf8');
+let privateKey = fs.readFileSync(path.resolve(__dirname, './certificates/alice.key'), 'utf8');
+let certificate = fs.readFileSync(path.resolve(__dirname, './certificates/alice.crt'), 'utf8');
 let credentials = {key: privateKey, cert: certificate};
 
 let server = http.createServer(app);
