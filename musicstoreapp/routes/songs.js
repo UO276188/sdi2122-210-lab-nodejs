@@ -64,27 +64,22 @@ module.exports = function(app, songsRepository, commentsRepository) {
         let filter = {_id: ObjectId(req.params.id)};
         let options = {};
         let user = req.session.user;
+        let songID = ObjectId(req.params.id);
         songsRepository.findSong(filter, options).then(song => {
-            let canBuy = req.session.user != song.author; //if author==user -> cannot buy
-            filter = {song_id: ObjectId(req.params.id)};
-            commentsRepository.getComments(filter, options).then(comments => {
-                filter = {user: req.session.user};
-                songsRepository.getPurchases(filter, options).then(purchases => {
-                    if (purchases.find(s => s.songId.equals(song._id)) != null) //if song already buy -> cannot buy
-                        canBuy = false;
-                    res.render("songs/song.twig", {song: song, comments : comments, canBuy: canBuy});
+            filter = {song_id: songID};
+            canBuy(user, songID, function (buy){
+                commentsRepository.getComments(filter, options).then(comments => {
+                    res.render("songs/song.twig", {song: song, comments : comments, canBuy: buy});
                 }).catch(error => {
-                    res.send("Se ha producido un error al recuperar las compras " + error)
+                    res.send("Se ha producido un error al recuperar los comentarios " + error)
                 });
-
-            }).catch(error => {
-                res.send("Se ha producido un error al recuperar los comentarios " + error)
             });
 
         }).catch(error => {
             res.send("Se ha producido un error al buscar la canción " + error)
         });
     });
+
 
 
     app.get('/songs/edit/:id', function (req, res) {
@@ -150,37 +145,33 @@ module.exports = function(app, songsRepository, commentsRepository) {
         }
     };
 
+
+    function canBuy (user, songId, callback){
+        let filter ={_id : songId, author: user};
+        let options = {};
+        songsRepository.getSongs(filter, options).then(songs => {
+            if (songs==null || songs.length > 0){
+                callback(false); //user is author
+            } else {
+                filter = {songId : songId, user: user};
+                songsRepository.getPurchases(filter, options).then(purchases => {
+                    if (purchases==null || purchases.length > 0)
+                        callback(false);
+                    else
+                        callback(true);
+                }).catch(error => {
+                    callback(false);
+                });
+            }
+        });
+    }
     app.get('/songs/buy/:id', function (req, res) {
         let songId = ObjectId(req.params.id);
         let shop = {
             user: req.session.user,
             songId: songId
         }
-        let filter = {_id: ObjectId(req.params.id)};
-        let options = {};
-
-        songsRepository.findSong(filter, options).then(song => {
-            let canBuy = req.session.user != song.author; //if author==user -> cannot buy
-            filter = {user: req.session.user};
-            songsRepository.getPurchases(filter, options).then(purchases => {
-                if (purchases.find(s => s.songId.equals(song._id)) != null) //if song already buy -> cannot buy
-                    canBuy = false;
-                if (canBuy){
-                    songsRepository.buySong(shop, function (shopId) {
-                        if (shopId == null) {
-                            res.send("Error al realizar la compra");
-                        } else {
-                            res.redirect("/purchases");
-                        }
-                    });
-                } else {
-                    res.send("Error en la compra.");
-                }
-            }).catch(error => {
-                res.send("Se ha producido un error al recuperar las compras " + error)
-            });
-        })
-
+        let user = req.session.user;
         canBuy(user, songId, function( buy){
             if (buy){
                 songsRepository.buySong(shop, function (shopId) {
@@ -193,7 +184,9 @@ module.exports = function(app, songsRepository, commentsRepository) {
             } else {
                 res.send("You cannot buy your own song");
             }
+
         })
+
     });
 
     app.get('/purchases', function (req, res) {
