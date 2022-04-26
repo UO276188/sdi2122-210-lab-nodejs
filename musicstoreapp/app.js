@@ -6,6 +6,9 @@ let logger = require('morgan');
 
 
 let app = express();
+let jwt = require('jsonwebtoken');
+app.set('jwt', jwt);
+
 
 let expressSession = require('express-session');
 app.use(expressSession({
@@ -48,30 +51,28 @@ const userAuthorRouter = require('./routes/userAuthorRouter');
 app.use("/songs/edit",userAuthorRouter);
 app.use("/songs/delete",userAuthorRouter);
 
+const userTokenRouter = require('./routes/userTokenRouter');
+app.use("/api/v1.0/songs/", userTokenRouter);
+
 const commentsRepository = require("./repositories/commentsRepository.js");
 commentsRepository.init(app, MongoClient);
 require("./routes/comments.js")(app, commentsRepository);
 
 let songsRepository = require("./repositories/songsRepository.js");
 songsRepository.init(app, MongoClient);
+
+const usersRepository = require("./repositories/usersRepository.js");
+usersRepository.init(app, MongoClient);
+require("./routes/users.js")(app, usersRepository);
+
 require("./routes/songs.js")(app, songsRepository, commentsRepository);
-require("./routes/api/songsAPIv1.0.js")(app, songsRepository);
+require("./routes/api/songsAPIv1.0.js")(app, songsRepository, usersRepository);
 
 require("./routes/authors.js")(app, MongoClient);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'twig');
-
-
-
-const usersRepository = require("./repositories/usersRepository.js");
-usersRepository.init(app, MongoClient);
-require("./routes/users.js")(app, usersRepository);
-
-
-
-
 
 app.use(logger('dev'));
 app.use(express.json());
