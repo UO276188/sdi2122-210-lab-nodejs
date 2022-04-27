@@ -21,17 +21,27 @@ module.exports = function (app, songsRepository, usersRepository) {
                 author: req.session.user
             }
             // Validar aquí: título, género, precio y autor.
-            songsRepository.insertSong(song, function (songId) {
-                if (songId === null) {
-                    res.status(409);
-                    res.json({error: "No se ha podido crear la canción. El recurso ya existe."});
+
+            validate(song, function (errors){
+                if (errors == null || errors.length == 0){ //no errors
+                    songsRepository.insertSong(song, function (songId) {
+                        if (songId === null) {
+                            res.status(409);
+                            res.json({error: "No se ha podido crear la canción. El recurso ya existe."});
+                        } else {
+                            res.status(201);
+                            res.json({ message: "Canción añadida correctamente.",
+                                _id: songId
+                            })
+                        }
+                    });
                 } else {
-                    res.status(201);
-                    res.json({ message: "Canción añadida correctamente.",
-                        _id: songId
-                    })
+                    res.status(403);
+                    res.json({error: errors});
                 }
-            });
+            })
+
+
         } catch (e) {
             res.status(500);
             res.json({error: "Se ha producido un error al intentar crear la canción: " + e})
@@ -75,26 +85,40 @@ module.exports = function (app, songsRepository, usersRepository) {
             if (typeof req.body.price != "undefined" && req.body.price != null)
                 song.price = req.body.price;
 
-            songsRepository.updateSong(song, filter, options).then(result => {
-                if (result === null) {
-                    res.status(404);
-                    res.json({error: "ID inválido o no existe, no se ha actualizado la canción."});
-                }
-                //La _id No existe o los datos enviados no difieren de los ya almacenados.
-                else if (result.modifiedCount == 0) {
-                    res.status(409);
-                    res.json({error: "No se ha modificado ninguna canción."});
-                } else{
-                    res.status(200);
-                    res.json({
-                        message: "Canción modificada correctamente.",
-                        result: result
+            isAuthor(song.author, songId, function (isAuthor){
+                if (isAuthor){
+                    validate(song, function(errors){
+                        if (errors == null || errors.length == 0) { //no errors
+                            songsRepository.updateSong(song, filter, options).then(result => {
+                                if (result === null) {
+                                    res.status(404);
+                                    res.json({error: "ID inválido o no existe, no se ha actualizado la canción."});
+                                }
+                                //La _id No existe o los datos enviados no difieren de los ya almacenados.
+                                else if (result.modifiedCount == 0) {
+                                    res.status(409);
+                                    res.json({error: "No se ha modificado ninguna canción."});
+                                } else{
+                                    res.status(200);
+                                    res.json({
+                                        message: "Canción modificada correctamente.",
+                                        result: result
+                                    })
+                                }
+                            }).catch(error => {
+                                res.status(500);
+                                res.json({error : "Se ha producido un error al modificar la canción."})
+                            });
+                        } else {
+                            res.status(403);
+                            res.json({error: errors})
+                        }
                     })
+                } else{
+                    res.status(500);
+                    res.json({error:"El usuario no es autor de la canción que se está intentando modificar"})
                 }
-            }).catch(error => {
-                res.status(500);
-                res.json({error : "Se ha producido un error al modificar la canción."})
-            });
+            })
         } catch (e) {
             res.status(500);
             res.json({error: "Se ha producido un error al intentar modificar la canción: "+ e})
@@ -105,18 +129,27 @@ module.exports = function (app, songsRepository, usersRepository) {
         try {
             let songId = ObjectId(req.params.id)
             let filter = {_id: songId}
-            songsRepository.deleteSong(filter, {}).then(result => {
-                if (result === null || result.deletedCount === 0) {
-                    res.status(404);
-                    res.json({error: "ID inválido o no existe, no se ha borrado el registro."});
+
+            isAuthor(req.session.user, songId, function (isAuthor){
+                if (isAuthor){
+                    songsRepository.deleteSong(filter, {}).then(result => {
+                        if (result === null || result.deletedCount === 0) {
+                            res.status(404);
+                            res.json({error: "ID inválido o no existe, no se ha borrado el registro."});
+                        } else {
+                            res.status(200);
+                            res.send(JSON.stringify(result));
+                        }
+                    }).catch(error => {
+                        res.status(500);
+                        res.json({error: "Se ha producido un error al eliminar la canción."})
+                    });
                 } else {
-                    res.status(200);
-                    res.send(JSON.stringify(result));
+                    res.status(500);
+                    res.json({error: "El usuario no es el autor de la canción que se intenta eliminar."})
                 }
-            }).catch(error => {
-                res.status(500);
-                res.json({error: "Se ha producido un error al eliminar la canción."})
-            });
+            })
+
         } catch (e) {
             res.status(500);
             res.json({error: "Se ha producido un error, revise que el ID sea válido."})
@@ -165,4 +198,47 @@ module.exports = function (app, songsRepository, usersRepository) {
            })
        }
     });
+
+
+    //AUX
+    function isAuthor(user, songId, callback) {
+        let filter = {$and: [{'_id': songId}, {'author': user}]};
+        let options ={};
+        songsRepository.getSongs(filter, options).then(songs => {
+            if (songs==null || songs.length <= 0){
+                callback(false);
+            }
+            else
+                callback(true);
+        })
+
+    }
+
+    function validate(song, callback) {
+        let errors = new Array();
+
+        //PRICE : positive
+        if (song.price === null || typeof song.price === 'undefined' || song.price < 0 || song.price === '') {
+            errors.push('El precio debe ser positivo');
+        }
+
+        //TITLE :
+        if (song.title === null || typeof song.title === 'undefined' || song.title === '') {
+            errors.push('El título de la canción no puede  estar vacio');
+        }else if (song.title.length > 4 || song.title.length > 40) {
+            errors.push('El título ha de contener entre 4 y 40 caractéres');
+        }
+
+        //GENERO
+        if (song.kind === null || typeof song.kind === 'undefined' || song.kind === '') {
+            errors.push('El género no puede  estar vacio');
+        }
+
+        if (errors.length > 0) {
+            callback(errors);
+        } else {
+            callback(null);
+        }
+
+    }
 }
