@@ -147,7 +147,7 @@ module.exports = function (app, songsRepository, usersRepository) {
                    res.json({
                        message: "usuario autorizado",
                        authenticated : true,
-                       toke: token
+                       token: token
                    })
                }
            }).catch(error => {
