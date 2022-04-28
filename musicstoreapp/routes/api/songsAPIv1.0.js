@@ -23,11 +23,16 @@ module.exports = function (app, songsRepository, usersRepository) {
             // Validar aquí: título, género, precio y autor.
 
             validate(song, function (errors){
-                if (errors == null || errors.length == 0){ //no errors
+                if (errors !== null && errors.length > 0){
+                    res.status(422); //entidad no pocesable
+                    res.json({errors: errors});
+                } else {
                     songsRepository.insertSong(song, function (songId) {
                         if (songId === null) {
+                            let errors = new Array()
                             res.status(409);
-                            res.json({error: "No se ha podido crear la canción. El recurso ya existe."});
+                            errors.push("No se ha podido crear la canción. El recurso ya existe.")
+                            res.json({errors: errors});
                         } else {
                             res.status(201);
                             res.json({ message: "Canción añadida correctamente.",
@@ -35,9 +40,6 @@ module.exports = function (app, songsRepository, usersRepository) {
                             })
                         }
                     });
-                } else {
-                    res.status(403);
-                    res.json({error: errors});
                 }
             })
 
@@ -85,7 +87,7 @@ module.exports = function (app, songsRepository, usersRepository) {
             if (typeof req.body.price != "undefined" && req.body.price != null)
                 song.price = req.body.price;
 
-            isAuthor(song.author, songId, function (isAuthor){
+            isAuthor(song.author, songId, function (isAuthor){ //en validador como un custom
                 if (isAuthor){
                     validate(song, function(errors){
                         if (errors == null || errors.length == 0) { //no errors

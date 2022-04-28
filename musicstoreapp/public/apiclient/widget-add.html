@@ -39,7 +39,19 @@
                 $("#main-container").load("widget-songs.html");
             },
             error: function (error) {
-                $("#main-container").load("widget-login.html");
+                console.log(error); // <--Prueba
+                $("#div-errors").remove();
+                let currentErrors = (typeof response.responseJSON.errors == 'undefined') ? null: response.responseJSON.errors;
+                if (currentErrors != null && currentErrors.length > 0) {
+                    $("#widget-agregar")
+                        .prepend("<div id = 'div-errors' class='alert alert-danger'><ul id = 'ul-errors'></ul></div>");
+                    for (let i = 0; i < currentErrors.length; i++) {
+                        $("#ul-errors").append("<li >" + currentErrors[i] + "</li>");
+                    }
+                } else {
+                    $("#widget-agregar")
+                        .prepend("<div id = 'div-errors' class='alert alert-danger'>Se ha producido un error inesperado</div>");
+                }
             }
         });
     }
